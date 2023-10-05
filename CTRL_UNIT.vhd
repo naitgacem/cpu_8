@@ -30,7 +30,7 @@ architecture arch of CTRL_UNIT is
 
     signal opcode      : std_logic_vector(3 downto 0);
     constant IMMEDIATE : std_logic_vector(1 downto 0) := "01";
-    constant REGUSTER  : std_logic_vector(1 downto 0) := "10";
+    constant REG       : std_logic_vector(1 downto 0) := "10";
 
 begin
 
@@ -76,7 +76,6 @@ begin
                         RR   := IR(1 downto 0);
                         case mode is
                             when IMMEDIATE =>
-
                             when others =>
                         end case;
                     when others =>
@@ -90,3 +89,4 @@ begin
     END PROCESS;
 
 end arch;
+
