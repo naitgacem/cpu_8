@@ -153,9 +153,9 @@ begin
     mux_8_ch_inst : MUX_8_CH
         port map(
             sel => BUS_MUX_SEL,
-            d0  => MEM_TO_BUS,
-            d1  => PC_TO_BUS,
-            d2  => PC_INC_TO_BUS,
+            d0  => PC_TO_BUS,
+            d1  => PC_INC_TO_BUS,
+            d2  => MEM_TO_BUS,
             d3  => (others => '0'),
             d4  => (others => '0'),
             d5  => (others => '0'),

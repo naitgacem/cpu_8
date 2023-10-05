@@ -43,17 +43,8 @@ begin
         wait;
     end process;
 
-    -- Stimulus process (write your test scenarios here)
     stimulus : process
     begin
-        -- You can write your test cases here
-        -- For example:
-        -- wait for 20 ns;
-        -- reset <= '1';
-        -- wait for 10 ns;
-        -- reset <= '0';
-        -- wait for 50 ns;
-        -- assert external_data = "01010101" report "Test failed!" severity error;
         wait;
     end process;
 
