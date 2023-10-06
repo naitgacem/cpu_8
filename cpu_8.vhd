@@ -39,7 +39,11 @@ architecture arch of cpu_8 is
             CTRL_MAR_WE : OUT std_logic;
             CTRL_MEM_WE : OUT std_logic;
             CTRL_PC_WE  : OUT std_logic;
-            CTRL_IR_WE  : OUT std_logic
+            CTRL_IR_WE  : OUT std_logic;
+            CTRL_B_WE   : OUT std_logic;
+            CTRL_C_WE   : OUT std_logic;
+            CTRL_ACC_WE : OUT std_logic;
+            CTRL_TMP_WE : OUT std_logic
         );
     end component;
 
@@ -71,6 +75,15 @@ architecture arch of cpu_8 is
             y   : out std_logic_vector(7 downto 0)
         );
     end component;
+    component ALU_8
+        port(
+            A      : IN  std_logic_vector(7 downto 0);
+            B      : IN  std_logic_vector(7 downto 0);
+            opcode : IN  std_logic_vector(3 downto 0);
+            SCR    : OUT std_logic_vector(7 downto 0);
+            Y      : OUT std_logic_vector(7 downto 0)
+        );
+    end component ALU_8;
 
     signal cpu_bus     : std_logic_vector(7 downto 0);
     signal IR          : std_logic_vector(7 downto 0);
@@ -80,13 +93,24 @@ architecture arch of cpu_8 is
     signal CTRL_IR_WE  : std_logic;
     signal CTRL_PC_WE  : std_logic;
 
+    signal CTRL_B_WE   : std_logic;
+    signal CTRL_C_WE   : std_logic;
+    signal CTRL_ACC_WE : std_logic;
+    signal CTRL_TMP_WE : std_logic;
+
     signal MEM_TO_BUS : std_logic_vector(7 downto 0);
     signal PC_TO_BUS  : std_logic_vector(7 downto 0);
 
     signal MAR_TO_MEM    : std_logic_vector(7 downto 0) := (others => '0');
     signal PC_INC_TO_BUS : std_logic_vector(7 downto 0);
+    signal C_REG_TO_BUS  : std_logic_vector(7 downto 0);
+    signal B_REG_TO_BUS  : std_logic_vector(7 downto 0);
+    signal ACC_TO_BUS    : std_logic_vector(7 downto 0);
+    signal TMP_TO_BUS    : std_logic_vector(7 downto 0);
+    signal ALU_TO_BUS    : std_logic_vector(7 downto 0);
 
     signal ADDRESS : natural := 0;
+    signal FLAGS   : std_logic_vector(7 downto 0);
 
 begin
 
@@ -132,7 +156,11 @@ begin
             CTRL_MAR_WE => CTRL_MAR_WE,
             CTRL_MEM_WE => CTRL_MEM_WE,
             CTRL_PC_WE  => CTRL_PC_WE,
-            CTRL_IR_WE  => CTRL_IR_WE
+            CTRL_IR_WE  => CTRL_IR_WE,
+            CTRL_B_WE   => CTRL_B_WE,
+            CTRL_C_WE   => CTRL_C_WE,
+            CTRL_ACC_WE => CTRL_ACC_WE,
+            CTRL_TMP_WE => CTRL_TMP_WE
         );
 
     ADDRESS <= to_integer(unsigned(MAR_TO_MEM));
@@ -156,12 +184,52 @@ begin
             d0  => PC_TO_BUS,
             d1  => PC_INC_TO_BUS,
             d2  => MEM_TO_BUS,
-            d3  => (others => '0'),
-            d4  => (others => '0'),
-            d5  => (others => '0'),
-            d6  => (others => '0'),
-            d7  => (others => '0'),
+            d3  => C_REG_TO_BUS,
+            d4  => B_REG_TO_BUS,
+            d5  => ACC_TO_BUS,
+            d6  => TMP_TO_BUS,
+            d7  => ALU_TO_BUS,
             y   => cpu_bus
+        );
+    B_reg_inst : REG_8
+        port map(
+            clk   => clk,
+            reset => reset,
+            WE    => CTRL_B_WE,
+            D     => cpu_bus,
+            Q     => B_REG_TO_BUS
+        );
+    C_reg_inst : REG_8
+        port map(
+            clk   => clk,
+            reset => reset,
+            WE    => CTRL_C_WE,
+            D     => cpu_bus,
+            Q     => C_REG_TO_BUS
+        );
+    ACC_reg_inst : REG_8
+        port map(
+            clk   => clk,
+            reset => reset,
+            WE    => CTRL_ACC_WE,
+            D     => cpu_bus,
+            Q     => ACC_TO_BUS
+        );
+    tmp_reg_inst_reg_inst : REG_8
+        port map(
+            clk   => clk,
+            reset => reset,
+            WE    => CTRL_TMP_WE,
+            D     => cpu_bus,
+            Q     => TMP_TO_BUS
+        );
+    alu_inst : ALU_8
+        port map(
+            A      => ACC_TO_BUS,
+            B      => TMP_TO_BUS,
+            opcode => IR(7 downto 4),
+            SCR    => FLAGS,
+            Y      => ALU_TO_BUS
         );
 
 end arch;

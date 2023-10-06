@@ -10,8 +10,8 @@ architecture testbench of ctrl_unit_tb is
         port(
             clk         : IN  std_logic;
             reset       : IN  std_logic;
-            IR          : IN  unsigned(7 downto 0);
-            BUS_MUX_SEL : OUT unsigned(2 downto 0);
+            IR          : IN  std_logic_vector(7 downto 0);
+            BUS_MUX_SEL : OUT std_logic_vector(2 downto 0);
             CTRL_MAR_WE : OUT std_logic;
             CTRL_MEM_WE : OUT std_logic;
             CTRL_PC_WE  : OUT std_logic;
@@ -20,8 +20,8 @@ architecture testbench of ctrl_unit_tb is
     end component CTRL_UNIT;
     signal clk         : std_logic;
     signal reset       : std_logic;
-    signal IR          : unsigned(7 downto 0);
-    signal BUS_MUX_SEL : unsigned(2 downto 0);
+    signal IR          : std_logic_vector(7 downto 0);
+    signal BUS_MUX_SEL : std_logic_vector(2 downto 0);
     signal CTRL_MAR_WE : std_logic;
     signal CTRL_MEM_WE : std_logic;
     signal CTRL_PC_WE  : std_logic;

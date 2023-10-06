@@ -6,7 +6,7 @@ ENTITY MAR_vhd_tst IS
 END MAR_vhd_tst;
 ARCHITECTURE MAR_arch OF MAR_vhd_tst IS
                                                  
-	SIGNAL d : unsigned(7 DOWNTO 0);
+	SIGNAL d : std_logic_vector(7 DOWNTO 0);
 	SIGNAL OE : STD_LOGIC;
 	SIGNAL reset : STD_LOGIC;
 	SIGNAL RW : STD_LOGIC;
@@ -14,7 +14,7 @@ ARCHITECTURE MAR_arch OF MAR_vhd_tst IS
 	COMPONENT MAR
 		PORT (
 		clk : IN STD_LOGIC;
-		d : INOUT unsigned(7 DOWNTO 0);
+		d : INOUT std_logic_vector(7 DOWNTO 0);
 		OE : IN STD_LOGIC;
 		reset : IN STD_LOGIC;
 		RW : IN STD_LOGIC;
