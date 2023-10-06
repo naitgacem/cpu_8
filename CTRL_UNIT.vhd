@@ -17,7 +17,8 @@ entity CTRL_UNIT is
         CTRL_B_WE   : OUT std_logic;
         CTRL_C_WE   : OUT std_logic;
         CTRL_ACC_WE : OUT std_logic;
-        CTRL_TMP_WE : OUT std_logic
+        CTRL_TMP_WE : OUT std_logic;
+        M1          : out std_logic
     );
 
 end entity;
@@ -36,13 +37,19 @@ architecture arch of CTRL_UNIT is
     constant IMMEDIATE : std_logic_vector(1 downto 0) := "01";
     constant REG       : std_logic_vector(1 downto 0) := "10";
 
-    TYPE stage is (s1, s2, s3, s4);
+    TYPE stage is (s1, s2, s3, s4, s5);
     signal T_COUNT : stage;
     signal ticks   : natural := 0;
+
+    constant LOAD  : std_logic_vector(3 downto 0) := "0000";
+    constant STORE : std_logic_vector(3 downto 0) := "0001";
+
+    signal fetch_start : std_logic := '1';
 
 begin
 
     opcode <= IR(7 downto 4);
+    M1     <= fetch_start;
 
     process(clk, reset)
         variable mode : std_logic_vector(1 downto 0) := "00";
@@ -53,8 +60,6 @@ begin
             T_COUNT <= s1;
         ELSIF rising_edge(clk) THEN
             ticks       <= ticks + 1;
-            -- report "hi " & integer'image(ticks) & " : " & Tstate'image(state) severity note;
-            -- report "hi " & stage'image(T_COUNT) severity note;
             BUS_MUX_SEL <= (others => '0');
             CTRL_MAR_WE <= '1';
             CTRL_MEM_WE <= '0';
@@ -64,18 +69,21 @@ begin
             CTRL_C_WE   <= '1';
             CTRL_ACC_WE <= '1';
             CTRL_TMP_WE <= '1';
+            fetch_start <= '1';
             CASE state IS
                 WHEN FETCH_CYCLE =>
+                    fetch_start <= '0';
                     case T_COUNT is
                         when s1 =>
                             BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
                             CTRL_MAR_WE <= '0';
-                            CTRL_MEM_WE <= '1';
                             T_COUNT     <= s2;
-                        WHEN s2 =>
+                        when s2 =>
+                            T_COUNT <= s3;
+                        WHEN s3 =>
                             BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
                             CTRL_IR_WE  <= '0';
-                            T_COUNT     <= s3;
+                            T_COUNT     <= s4;
                         when others =>
                             BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
                             CTRL_PC_WE  <= '0';
@@ -84,7 +92,7 @@ begin
                     end case;
                 WHEN DECODE_CYCLE =>
                     case opcode is
-                        when "0000" =>  -- load
+                        when LOAD =>
                             mode := IR(3 downto 2);
                             RR   := IR(1 downto 0);
                             case mode is
@@ -93,9 +101,10 @@ begin
                                         when s1 =>
                                             BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
                                             CTRL_MAR_WE <= '0';
-                                            CTRL_MEM_WE <= '1';
                                             T_COUNT     <= s2;
-                                        WHEN s2 =>
+                                        when s2 => -- memory being addressed
+                                            T_COUNT <= s3;
+                                        WHEN s3 =>
                                             BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
                                             case RR is
                                                 when "00" =>
@@ -106,7 +115,7 @@ begin
                                                     CTRL_ACC_WE <= '0';
                                                 when others =>
                                             end case;
-                                            T_COUNT     <= s3;
+                                            T_COUNT     <= s4;
                                         when others =>
                                             BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
                                             CTRL_PC_WE  <= '0';
@@ -118,19 +127,18 @@ begin
                                         when s1 =>
                                             BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
                                             CTRL_MAR_WE <= '0';
-                                            CTRL_MEM_WE <= '1';
                                             T_COUNT     <= s2;
-                                            report "hi " & stage'image(T_COUNT) severity NOTE;
-                                        WHEN s2 =>
+                                        when s2 =>
+                                            T_COUNT <= s3;
+                                        WHEN s3 =>
                                             BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
                                             CTRL_MAR_WE <= '0';
-                                            CTRL_MEM_WE <= '1';
-                                            T_COUNT     <= s3;
-                                        when s3 =>
-                                            BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                            CTRL_PC_WE  <= '0';
                                             T_COUNT     <= s4;
                                         when s4 =>
+                                            BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                            CTRL_PC_WE  <= '0';
+                                            T_COUNT     <= s5;
+                                        when s5 =>
                                             BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
                                             case RR is
                                                 when "00" =>
@@ -145,6 +153,8 @@ begin
                                             next_state  <= EXECUTE_CYCLE;
                                     end case;
                             end case;
+                        when STORE =>
+
                         when others =>
                             next_state <= EXECUTE_CYCLE;
                     end case;

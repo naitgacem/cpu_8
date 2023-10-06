@@ -43,7 +43,8 @@ architecture arch of cpu_8 is
             CTRL_B_WE   : OUT std_logic;
             CTRL_C_WE   : OUT std_logic;
             CTRL_ACC_WE : OUT std_logic;
-            CTRL_TMP_WE : OUT std_logic
+            CTRL_TMP_WE : OUT std_logic;
+            M1          : out std_logic
         );
     end component;
 
@@ -112,6 +113,8 @@ architecture arch of cpu_8 is
     signal ADDRESS : natural := 0;
     signal FLAGS   : std_logic_vector(7 downto 0);
 
+    signal M1 : std_logic := '1';
+
 begin
 
     MAR_inst : REG_8
@@ -160,7 +163,8 @@ begin
             CTRL_B_WE   => CTRL_B_WE,
             CTRL_C_WE   => CTRL_C_WE,
             CTRL_ACC_WE => CTRL_ACC_WE,
-            CTRL_TMP_WE => CTRL_TMP_WE
+            CTRL_TMP_WE => CTRL_TMP_WE,
+            M1          => M1
         );
 
     ADDRESS <= to_integer(unsigned(MAR_TO_MEM));
