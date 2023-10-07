@@ -49,6 +49,17 @@ architecture arch of CTRL_UNIT is
     constant STORE : std_logic_vector(3 downto 0) := "0001";
     constant ADD   : std_logic_vector(3 downto 0) := "0010";
 
+    constant ADC            : std_logic_vector(3 downto 0) := "0100";
+    constant SUBTRACT       : std_logic_vector(3 downto 0) := "0011";
+    constant COMPARE        : std_logic_vector(3 downto 0) := "0101";
+    constant INCREMENT      : std_logic_vector(3 downto 0) := "0110";
+    constant DECREMENT      : std_logic_vector(3 downto 0) := "0111";
+    constant AND_OP         : std_logic_vector(3 downto 0) := "1000";
+    constant OR_OP          : std_logic_vector(3 downto 0) := "1001";
+    constant XOR_OP         : std_logic_vector(3 downto 0) := "1010";
+    constant SHIFT_LEFT_OP  : std_logic_vector(3 downto 0) := "1011";
+    constant SHIFT_RIGHT_OP : std_logic_vector(3 downto 0) := "1100";
+
     signal fetch_start : std_logic := '1';
 
 begin
@@ -59,6 +70,9 @@ begin
     process(clk, reset)
         variable mode : std_logic_vector(1 downto 0) := "00";
         variable RR   : std_logic_vector(1 downto 0) := "00";
+        variable R1   : std_logic_vector(1 downto 0) := "00";
+        variable R2   : std_logic_vector(1 downto 0) := "00";
+
     begin
         IF reset = '0' THEN
             state   <= FETCH_CYCLE;
@@ -233,6 +247,60 @@ begin
                                             next_state  <= EXECUTE_CYCLE;
                                     end case;
                             end case;
+                        when ADD | SUBTRACT | ADC | COMPARE | AND_OP | OR_OP | XOR_OP =>
+                            R1 := IR(3 downto 2);
+                            R2 := IR(1 downto 0);
+                            case (R1 & R2) is
+                                when "0001" | "0100" => -- B and C
+                                    case T_COUNT is
+                                        when s1 =>
+                                            BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                            CTRL_TMP_WE <= '0';
+                                            T_COUNT     <= s2;
+                                        when s2 =>
+                                            BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                            CTRL_ACC_WE <= '0';
+                                            T_COUNT     <= s3;
+                                        WHEN s3 =>
+                                            T_COUNT <= s4;
+                                        when others =>
+                                            BUS_MUX_SEL <= to_unsigned(ALU_OUT, BUS_MUX_SEL'length);
+                                            CTRL_ACC_WE <= '0';
+                                            T_COUNT     <= s1;
+                                            next_state  <= EXECUTE_CYCLE;
+                                    end case;
+                                when "1000" | "0010" => -- acc with b 
+                                    case T_COUNT is
+                                        when s1 =>
+                                            BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                            CTRL_TMP_WE <= '0';
+                                            T_COUNT     <= s2;
+                                        when s2 =>
+                                            T_COUNT <= s3;
+                                        when others =>
+                                            BUS_MUX_SEL <= to_unsigned(ALU_OUT, BUS_MUX_SEL'length);
+                                            CTRL_ACC_WE <= '0';
+                                            T_COUNT     <= s1;
+                                            next_state  <= EXECUTE_CYCLE;
+                                    end case;
+                                when "1001" | "0110" => -- acc with c   
+                                    case T_COUNT is
+                                        when s1 =>
+                                            BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                            CTRL_TMP_WE <= '0';
+                                            T_COUNT     <= s2;
+                                        when s2 =>
+                                            T_COUNT <= s3;
+                                        when others =>
+                                            BUS_MUX_SEL <= to_unsigned(ALU_OUT, BUS_MUX_SEL'length);
+                                            CTRL_ACC_WE <= '0';
+                                            T_COUNT     <= s1;
+                                            next_state  <= EXECUTE_CYCLE;
+                                    end case;
+                                when others =>
+                                    report "illegal" severity NOTE;
+                            end case;
+                        when INCREMENT =>
 
                         when others =>
                             next_state <= EXECUTE_CYCLE;
