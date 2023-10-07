@@ -29,20 +29,25 @@ architecture arch of CTRL_UNIT is
     SIGNAL state      : Tstate := FETCH_CYCLE;
     SIGNAL next_state : Tstate := FETCH_CYCLE;
 
-    constant PC_OUT     : natural := 0;
-    constant PC_INC_OUT : natural := 1;
-    constant MEM_OUT    : natural := 2;
+    constant PC_OUT     : natural                      := 0;
+    constant PC_INC_OUT : natural                      := 1;
+    constant MEM_OUT    : natural                      := 2;
+    constant C_REG_OUT  : natural                      := 3;
+    constant B_REG_OUT  : natural                      := 4;
+    constant ACC_OUT    : natural                      := 5;
+    constant TMP_OUT    : natural                      := 6;
+    constant ALU_OUT    : natural                      := 7;
+    signal opcode       : std_logic_vector(3 downto 0);
+    constant IMMEDIATE  : std_logic_vector(1 downto 0) := "01";
+    constant REG        : std_logic_vector(1 downto 0) := "10";
 
-    signal opcode      : std_logic_vector(3 downto 0);
-    constant IMMEDIATE : std_logic_vector(1 downto 0) := "01";
-    constant REG       : std_logic_vector(1 downto 0) := "10";
-
-    TYPE stage is (s1, s2, s3, s4, s5);
+    TYPE stage is (s1, s2, s3, s4, s5, s6, s7);
     signal T_COUNT : stage;
     signal ticks   : natural := 0;
 
     constant LOAD  : std_logic_vector(3 downto 0) := "0000";
     constant STORE : std_logic_vector(3 downto 0) := "0001";
+    constant ADD   : std_logic_vector(3 downto 0) := "0010";
 
     signal fetch_start : std_logic := '1';
 
@@ -138,7 +143,7 @@ begin
                                             BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
                                             CTRL_PC_WE  <= '0';
                                             T_COUNT     <= s5;
-                                        when s5 =>
+                                        when others =>
                                             BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
                                             case RR is
                                                 when "00" =>
@@ -148,20 +153,92 @@ begin
                                                 when "10" =>
                                                     CTRL_ACC_WE <= '0';
                                                 when others =>
+                                                    report "illegal" severity NOTE;
                                             end case;
                                             T_COUNT     <= s1;
                                             next_state  <= EXECUTE_CYCLE;
                                     end case;
                             end case;
                         when STORE =>
+                            mode := IR(3 downto 2);
+                            RR   := IR(1 downto 0);
+                            case mode is
+                                when REG =>
+                                    case T_COUNT is
+                                        when s1 =>
+                                            BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                            CTRL_MAR_WE <= '0';
+                                            T_COUNT     <= s2;
+                                        when s2 => -- memory being addressed
+                                            T_COUNT <= s3;
+                                        WHEN s3 =>
+                                            BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                            CTRL_TMP_WE <= '0';
+                                            T_COUNT     <= s4;
+                                        when s4 =>
+                                            case RR is
+                                                when "00" =>
+                                                    BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                when "01" =>
+                                                    BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                when "10" =>
+                                                    BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                when others =>
+                                                    report "illegal" severity NOTE;
+                                            end case;
+                                            CTRL_MAR_WE <= '0';
+                                            T_COUNT     <= s5;
+                                        when s5 =>
+                                            T_COUNT <= s6;
+                                        when s6 =>
+                                            BUS_MUX_SEL <= to_unsigned(TMP_OUT, BUS_MUX_SEL'length);
+                                            CTRL_MEM_WE <= '1';
+                                            T_COUNT     <= s7;
+                                        when others =>
+                                            BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                            CTRL_PC_WE  <= '0';
+                                            T_COUNT     <= s1;
+                                            next_state  <= EXECUTE_CYCLE;
+                                    end case;
+                                when others => -- store RR content into memory
+                                    case T_COUNT is
+                                        when s1 =>
+                                            BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                            CTRL_MAR_WE <= '0';
+                                            T_COUNT     <= s2;
+                                        when s2 =>
+                                            T_COUNT <= s3;
+                                        WHEN s3 =>
+                                            BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                            CTRL_MAR_WE <= '0';
+                                            T_COUNT     <= s4;
+                                        when s4 =>
+                                            case RR is
+                                                when "00" =>
+                                                    BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                when "01" =>
+                                                    BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                when "10" =>
+                                                    BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                when others =>
+                                                    report "illegal" severity NOTE;
+                                            end case;
+                                            BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                            CTRL_MEM_WE <= '1';
+                                            T_COUNT     <= s5;
+                                        when others =>
+                                            BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                            CTRL_PC_WE  <= '0';
+                                            T_COUNT     <= s1;
+                                            next_state  <= EXECUTE_CYCLE;
+                                    end case;
+                            end case;
 
                         when others =>
                             next_state <= EXECUTE_CYCLE;
                     end case;
 
                 WHEN EXECUTE_CYCLE =>
-                    next_state <= FETCH_CYCLE;
-                when others =>
                     next_state <= FETCH_CYCLE;
             END CASE;
         END IF;

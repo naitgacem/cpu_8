@@ -32,7 +32,13 @@ architecture rtl of MEM_8 is
     return memory_t is
         variable tmp : memory_t := (others => (others => '0'));
     begin
-        for addr_pos in 0 to 2 ** ADDR_WIDTH - 1 loop
+        tmp(0) := "00000001";
+        tmp(1) := x"23";
+        tmp(2) := "00011001";
+        tmp(3) := x"FD";
+        tmp(4) := "00000000";
+        tmp(5) := x"23";
+        for addr_pos in 6 to 2 ** ADDR_WIDTH - 1 loop
             -- Initialize each address with the address itself
             tmp(addr_pos) := std_logic_vector(to_unsigned(addr_pos, DATA_WIDTH));
         end loop;
