@@ -555,13 +555,9 @@ begin
                                                         end case;
                                                         CTRL_PC_WE <= '0';
                                                         T_COUNT    <= s2;
-                                                    when s2 =>
-                                                        T_COUNT <= s3;
                                                     when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s1;
-                                                        next_state  <= EXECUTE_CYCLE;
+                                                        T_COUNT    <= s1;
+                                                        next_state <= EXECUTE_CYCLE;
                                                 end case;
                                             else
                                                 next_state <= EXECUTE_CYCLE;
@@ -582,13 +578,9 @@ begin
                                                         end case;
                                                         CTRL_PC_WE <= '0';
                                                         T_COUNT    <= s2;
-                                                    when s2 =>
-                                                        T_COUNT <= s3;
                                                     when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s1;
-                                                        next_state  <= EXECUTE_CYCLE;
+                                                        T_COUNT    <= s1;
+                                                        next_state <= EXECUTE_CYCLE;
                                                 end case;
                                             else
                                                 next_state <= EXECUTE_CYCLE;
@@ -609,13 +601,9 @@ begin
                                                         end case;
                                                         CTRL_PC_WE <= '0';
                                                         T_COUNT    <= s2;
-                                                    when s2 =>
-                                                        T_COUNT <= s3;
                                                     when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s1;
-                                                        next_state  <= EXECUTE_CYCLE;
+                                                        T_COUNT    <= s1;
+                                                        next_state <= EXECUTE_CYCLE;
                                                 end case;
                                             else
                                                 next_state <= EXECUTE_CYCLE;
@@ -636,13 +624,9 @@ begin
                                                         end case;
                                                         CTRL_PC_WE <= '0';
                                                         T_COUNT    <= s2;
-                                                    when s2 =>
-                                                        T_COUNT <= s3;
                                                     when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s1;
-                                                        next_state  <= EXECUTE_CYCLE;
+                                                        T_COUNT    <= s1;
+                                                        next_state <= EXECUTE_CYCLE;
                                                 end case;
                                             else
                                                 next_state <= EXECUTE_CYCLE;
@@ -663,13 +647,9 @@ begin
                                                         end case;
                                                         CTRL_PC_WE <= '0';
                                                         T_COUNT    <= s2;
-                                                    when s2 =>
-                                                        T_COUNT <= s3;
                                                     when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s1;
-                                                        next_state  <= EXECUTE_CYCLE;
+                                                        T_COUNT    <= s1;
+                                                        next_state <= EXECUTE_CYCLE;
                                                 end case;
                                             else
                                                 next_state <= EXECUTE_CYCLE;
@@ -690,13 +670,9 @@ begin
                                                         end case;
                                                         CTRL_PC_WE <= '0';
                                                         T_COUNT    <= s2;
-                                                    when s2 =>
-                                                        T_COUNT <= s3;
                                                     when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s1;
-                                                        next_state  <= EXECUTE_CYCLE;
+                                                        T_COUNT    <= s1;
+                                                        next_state <= EXECUTE_CYCLE;
                                                 end case;
                                             else
                                                 next_state <= EXECUTE_CYCLE;

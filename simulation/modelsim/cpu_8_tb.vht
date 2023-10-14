@@ -43,9 +43,4 @@ begin
         wait;
     end process;
 
-    stimulus : process
-    begin
-        wait;
-    end process;
-
 end testbench;
