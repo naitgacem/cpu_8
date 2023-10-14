@@ -45,7 +45,8 @@ architecture arch of cpu_8 is
             CTRL_C_WE   : OUT std_logic;
             CTRL_ACC_WE : OUT std_logic;
             CTRL_TMP_WE : OUT std_logic;
-            M1          : out std_logic
+            CTRL_SCR_WE : OUT std_logic;
+            M1          : OUT std_logic
         );
     end component;
 
@@ -99,6 +100,7 @@ architecture arch of cpu_8 is
     signal CTRL_C_WE   : std_logic;
     signal CTRL_ACC_WE : std_logic;
     signal CTRL_TMP_WE : std_logic;
+    signal CTRL_SCR_WE : std_logic;
 
     signal MEM_TO_BUS : std_logic_vector(7 downto 0);
     signal PC_TO_BUS  : std_logic_vector(7 downto 0);
@@ -111,8 +113,9 @@ architecture arch of cpu_8 is
     signal TMP_TO_BUS    : std_logic_vector(7 downto 0);
     signal ALU_TO_BUS    : std_logic_vector(7 downto 0);
 
-    signal ADDRESS : natural := 0;
-    signal FLAGS   : std_logic_vector(7 downto 0);
+    signal ADDRESS   : natural := 0;
+    signal FLAGS_IN  : std_logic_vector(7 downto 0);
+    signal FLAGS_OUT : std_logic_vector(7 downto 0);
 
     signal M1 : std_logic := '1';
 
@@ -150,13 +153,20 @@ begin
             D     => cpu_bus,
             Q     => IR
         );
-
+    SCR_inst : REG_8
+        port map(
+            clk   => clk,
+            reset => reset,
+            WE    => CTRL_SCR_WE,
+            D     => FLAGS_IN,
+            Q     => FLAGS_OUT
+        );
     ctrl_unit_inst : CTRL_UNIT
         port map(
             clk         => clk,
             reset       => reset,
             IR          => IR,
-            SCR         => FLAGS,
+            SCR         => FLAGS_OUT,
             BUS_MUX_SEL => BUS_MUX_SEL,
             CTRL_MAR_WE => CTRL_MAR_WE,
             CTRL_MEM_WE => CTRL_MEM_WE,
@@ -166,6 +176,7 @@ begin
             CTRL_C_WE   => CTRL_C_WE,
             CTRL_ACC_WE => CTRL_ACC_WE,
             CTRL_TMP_WE => CTRL_TMP_WE,
+            CTRL_SCR_WE => CTRL_SCR_WE,
             M1          => M1
         );
 
@@ -234,7 +245,7 @@ begin
             A      => ACC_TO_BUS,
             B      => TMP_TO_BUS,
             opcode => IR(7 downto 4),
-            SCR    => FLAGS,
+            SCR    => FLAGS_IN,
             Y      => ALU_TO_BUS
         );
 

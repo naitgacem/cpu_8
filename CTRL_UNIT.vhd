@@ -19,6 +19,7 @@ entity CTRL_UNIT is
         CTRL_C_WE   : OUT std_logic;
         CTRL_ACC_WE : OUT std_logic;
         CTRL_TMP_WE : OUT std_logic;
+        CTRL_SCR_WE : OUT std_logic;
         M1          : out std_logic
     );
 
@@ -111,6 +112,7 @@ begin
             CTRL_C_WE   <= '1';
             CTRL_ACC_WE <= '1';
             CTRL_TMP_WE <= '1';
+            CTRL_SCR_WE <= '1';
             fetch_start <= '1';
             CASE state IS
                 WHEN FETCH_CYCLE =>
@@ -288,6 +290,7 @@ begin
                                             T_COUNT <= s4;
                                         when others =>
                                             BUS_MUX_SEL <= to_unsigned(ALU_OUT, BUS_MUX_SEL'length);
+                                            CTRL_SCR_WE <= '0';
                                             CTRL_ACC_WE <= '0';
                                             T_COUNT     <= s1;
                                             next_state  <= EXECUTE_CYCLE;
@@ -302,6 +305,7 @@ begin
                                             T_COUNT <= s3;
                                         when others =>
                                             BUS_MUX_SEL <= to_unsigned(ALU_OUT, BUS_MUX_SEL'length);
+                                            CTRL_SCR_WE <= '0';
                                             CTRL_ACC_WE <= '0';
                                             T_COUNT     <= s1;
                                             next_state  <= EXECUTE_CYCLE;
@@ -316,6 +320,7 @@ begin
                                             T_COUNT <= s3;
                                         when others =>
                                             BUS_MUX_SEL <= to_unsigned(ALU_OUT, BUS_MUX_SEL'length);
+                                            CTRL_SCR_WE <= '0';
                                             CTRL_ACC_WE <= '0';
                                             T_COUNT     <= s1;
                                             next_state  <= EXECUTE_CYCLE;
@@ -353,6 +358,7 @@ begin
                                             report "" severity note;
                                     end case;
                                     BUS_MUX_SEL <= to_unsigned(ALU_OUT, BUS_MUX_SEL'length);
+                                    CTRL_SCR_WE <= '0';
                                     T_COUNT     <= s1;
                                     next_state  <= EXECUTE_CYCLE;
                             end case;
@@ -413,7 +419,9 @@ begin
                                 when IMMEDIATE =>
                                     case CC IS
                                         when IF_CARRY =>
+                                            report "did we " severity note;
                                             if (SCR(carry_flag) = '1') then
+                                                report "okay we are here " severity note;
                                                 case T_COUNT is
                                                     when s1 =>
                                                         BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
@@ -421,16 +429,16 @@ begin
                                                         T_COUNT     <= s2;
                                                     when s2 =>
                                                         T_COUNT <= s3;
-                                                    WHEN s3 =>
+                                                    WHEN others =>
                                                         BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s4;
-                                                    when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
                                                         CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
+
                                                 end case;
+                                            else
+                                                report "we have taken the other branch " severity note;
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_EQUAL =>
                                             if (SCR(zero_flag) = '1') then
@@ -441,17 +449,16 @@ begin
                                                         T_COUNT     <= s2;
                                                     when s2 =>
                                                         T_COUNT <= s3;
-                                                    WHEN s3 =>
+                                                    WHEN others =>
                                                         BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s4;
-                                                    when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
                                                         CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
+
                                         when IF_OVERFLOW =>
                                             if (SCR(overflow_flag) = '1') then
                                                 case T_COUNT is
@@ -461,16 +468,14 @@ begin
                                                         T_COUNT     <= s2;
                                                     when s2 =>
                                                         T_COUNT <= s3;
-                                                    WHEN s3 =>
+                                                    WHEN others =>
                                                         BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
-                                                        T_COUNT     <= s4;
-                                                    when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
                                                         CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_NO_CARRY =>
                                             if (SCR(carry_flag) = '0') then
@@ -481,16 +486,15 @@ begin
                                                         T_COUNT     <= s2;
                                                     when s2 =>
                                                         T_COUNT <= s3;
-                                                    WHEN s3 =>
+                                                    WHEN others =>
                                                         BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
                                                         CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s4;
-                                                    when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_NOT_EQUAL =>
                                             if (SCR(zero_flag) = '0') then
@@ -501,16 +505,15 @@ begin
                                                         T_COUNT     <= s2;
                                                     when s2 =>
                                                         T_COUNT <= s3;
-                                                    WHEN s3 =>
+                                                    WHEN others =>
                                                         BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
                                                         CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s4;
-                                                    when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_NO_OVERFLOW =>
                                             if (SCR(overflow_flag) = '0') then
@@ -521,16 +524,15 @@ begin
                                                         T_COUNT     <= s2;
                                                     when s2 =>
                                                         T_COUNT <= s3;
-                                                    WHEN s3 =>
+                                                    WHEN others =>
                                                         BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
                                                         CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s4;
-                                                    when others =>
-                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
-                                                        CTRL_PC_WE  <= '0';
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when others =>
                                             report "not yet implemented" severity note;
@@ -561,6 +563,8 @@ begin
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_EQUAL =>
                                             if (SCR(zero_flag) = '1') then
@@ -586,6 +590,8 @@ begin
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_OVERFLOW =>
                                             if (SCR(overflow_flag) = '1') then
@@ -611,6 +617,8 @@ begin
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_NO_CARRY =>
                                             if (SCR(carry_flag) = '0') then
@@ -636,6 +644,8 @@ begin
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_NO_OVERFLOW =>
                                             if (SCR(overflow_flag) = '0') then
@@ -661,6 +671,8 @@ begin
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when IF_NOT_EQUAL =>
                                             if (SCR(zero_flag) = '0') then
@@ -686,6 +698,8 @@ begin
                                                         T_COUNT     <= s1;
                                                         next_state  <= EXECUTE_CYCLE;
                                                 end case;
+                                            else
+                                                next_state <= EXECUTE_CYCLE;
                                             end if;
                                         when others =>
                                             report "not yet implemented" severity note;
@@ -697,6 +711,7 @@ begin
                     end case;
 
                 WHEN EXECUTE_CYCLE =>
+
                     next_state <= FETCH_CYCLE;
             END CASE;
         END IF;
