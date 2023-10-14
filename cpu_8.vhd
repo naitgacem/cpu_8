@@ -35,6 +35,7 @@ architecture arch of cpu_8 is
             clk         : IN  std_logic;
             reset       : IN  std_logic;
             IR          : IN  std_logic_vector(7 downto 0);
+            SCR         : IN  std_logic_vector(7 downto 0);
             BUS_MUX_SEL : OUT unsigned(2 downto 0);
             CTRL_MAR_WE : OUT std_logic;
             CTRL_MEM_WE : OUT std_logic;
@@ -155,6 +156,7 @@ begin
             clk         => clk,
             reset       => reset,
             IR          => IR,
+            SCR         => FLAGS,
             BUS_MUX_SEL => BUS_MUX_SEL,
             CTRL_MAR_WE => CTRL_MAR_WE,
             CTRL_MEM_WE => CTRL_MEM_WE,

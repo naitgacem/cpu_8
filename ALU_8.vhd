@@ -41,13 +41,14 @@ begin
     SCR <= FLAGS;
 
     process(A, B, opcode, FLAGS)
-        variable ans  : unsigned(8 downto 0);
+        variable ans  : unsigned(8 downto 0) := (others => '0');
         variable A_OP : unsigned(7 downto 0) := (others => '0');
         variable B_OP : unsigned(7 downto 0) := (others => '0');
 
     begin
-        A_OP              := unsigned(A);
-        B_OP              := unsigned(B);
+        A_OP   := unsigned(A);
+        B_OP   := unsigned(B);
+        FLAGS  <= (others => '0');
         --report "we are here " & unsigned'image(A_OP) & " " severity NOTE;
         case opcode is
             when ADD =>
@@ -64,11 +65,11 @@ begin
                 result <= std_logic_vector(ans(7 downto 0));
 
             when INCREMENT =>
-                ans    := ('0' & A_OP) + 1;
+                ans    := ('0' & B_OP) + 1;
                 result <= std_logic_vector(ans(7 downto 0));
 
             when DECREMENT =>
-                ans := ('0' & A_OP) - 1;
+                ans := ('0' & B_OP) - 1;
 
             when AND_OP =>
                 ans := '0' & A_OP and '0' & B_OP;
@@ -80,30 +81,33 @@ begin
                 ans := '0' & A_OP xor '0' & B_OP;
 
             when SHIFT_LEFT_OP =>
-                ans := '0' & shift_left(A_OP, to_integer(B_OP));
+                ans := '0' & shift_left(B_OP, 1);
 
             when SHIFT_RIGHT_OP =>
-                ans := '0' & shift_right(A_OP, to_integer(B_OP));
+                ans := '0' & shift_right(B_OP, 1);
 
             when others =>
                 ans := (others => '0');
         end case;
-        result            <= std_logic_vector(ans(7 downto 0));
+        result <= std_logic_vector(ans(7 downto 0));
+
         FLAGS(carry_flag) <= ans(8);
-
-        if (ans = 0) then
+        if (ans(7 downto 0) = 0) then
             FLAGS(zero_flag) <= '1';
-        else
-            FLAGS(zero_flag) <= '0';
         end if;
-        FLAGS(sign_flag) <= ans(7);
+        FLAGS(sign_flag)  <= ans(7);
 
-        if A_OP(7) = B_OP(7) and A_OP(7) /= ans(7) then
-            FLAGS(overflow_flag) <= '1';
-        else
-            FLAGS(overflow_flag) <= '0';
-        end if;
-
+        case opcode IS
+            when ADD | ADC =>
+                if A_OP(7) = B_OP(7) then
+                    FLAGS(overflow_flag) <= ans(7) xor A_OP(7);
+                end if;
+            when SUBTRACT =>
+                if A_OP(7) /= B_OP(7) then
+                    FLAGS(overflow_flag) <= ans(8) xor ans(7);
+                end if;
+            when others =>
+        end case;
     end process;
 
 end arch;

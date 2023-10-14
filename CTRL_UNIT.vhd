@@ -9,6 +9,7 @@ entity CTRL_UNIT is
         clk         : IN  std_logic;
         reset       : IN  std_logic;
         IR          : IN  std_logic_vector(7 downto 0);
+        SCR         : IN  std_logic_vector(7 downto 0);
         BUS_MUX_SEL : OUT unsigned(2 downto 0);
         CTRL_MAR_WE : OUT std_logic;
         CTRL_MEM_WE : OUT std_logic;
@@ -29,21 +30,22 @@ architecture arch of CTRL_UNIT is
     SIGNAL state      : Tstate := FETCH_CYCLE;
     SIGNAL next_state : Tstate := FETCH_CYCLE;
 
-    constant PC_OUT     : natural                      := 0;
-    constant PC_INC_OUT : natural                      := 1;
-    constant MEM_OUT    : natural                      := 2;
-    constant C_REG_OUT  : natural                      := 3;
-    constant B_REG_OUT  : natural                      := 4;
-    constant ACC_OUT    : natural                      := 5;
-    constant TMP_OUT    : natural                      := 6;
-    constant ALU_OUT    : natural                      := 7;
-    signal opcode       : std_logic_vector(3 downto 0);
-    constant IMMEDIATE  : std_logic_vector(1 downto 0) := "01";
-    constant REG        : std_logic_vector(1 downto 0) := "10";
+    constant PC_OUT     : natural := 0;
+    constant PC_INC_OUT : natural := 1;
+    constant MEM_OUT    : natural := 2;
+    constant C_REG_OUT  : natural := 3;
+    constant B_REG_OUT  : natural := 4;
+    constant ACC_OUT    : natural := 5;
+    constant TMP_OUT    : natural := 6;
+    constant ALU_OUT    : natural := 7;
+
+    signal opcode : std_logic_vector(3 downto 0);
+
+    constant IMMEDIATE : std_logic_vector(1 downto 0) := "01";
+    constant REG       : std_logic_vector(1 downto 0) := "10";
 
     TYPE stage is (s1, s2, s3, s4, s5, s6, s7);
     signal T_COUNT : stage;
-    signal ticks   : natural := 0;
 
     constant LOAD  : std_logic_vector(3 downto 0) := "0000";
     constant STORE : std_logic_vector(3 downto 0) := "0001";
@@ -59,6 +61,27 @@ architecture arch of CTRL_UNIT is
     constant XOR_OP         : std_logic_vector(3 downto 0) := "1010";
     constant SHIFT_LEFT_OP  : std_logic_vector(3 downto 0) := "1011";
     constant SHIFT_RIGHT_OP : std_logic_vector(3 downto 0) := "1100";
+    constant JUMP           : std_logic_vector(3 downto 0) := "1101";
+    constant COND_JUMP      : std_logic_vector(3 downto 0) := "1110";
+    constant HALT           : std_logic_vector(3 downto 0) := "1111";
+
+    constant REGISTER_ACC : std_logic_vector(1 downto 0) := "10";
+    constant REGISTER_B   : std_logic_vector(1 downto 0) := "00";
+    constant REGISTER_C   : std_logic_vector(1 downto 0) := "01";
+
+    constant IF_LARGER      : std_logic_vector(2 downto 0) := "000";
+    constant IF_LESS        : std_logic_vector(2 downto 0) := "001";
+    constant IF_EQUAL       : std_logic_vector(2 downto 0) := "010";
+    constant IF_NOT_EQUAL   : std_logic_vector(2 downto 0) := "011";
+    constant IF_CARRY       : std_logic_vector(2 downto 0) := "100";
+    constant IF_NO_CARRY    : std_logic_vector(2 downto 0) := "101";
+    constant IF_OVERFLOW    : std_logic_vector(2 downto 0) := "110";
+    constant IF_NO_OVERFLOW : std_logic_vector(2 downto 0) := "111";
+
+    constant carry_flag    : natural := 0;
+    constant zero_flag     : natural := 1;
+    constant overflow_flag : natural := 2;
+    constant sign_flag     : natural := 3;
 
     signal fetch_start : std_logic := '1';
 
@@ -72,13 +95,13 @@ begin
         variable RR   : std_logic_vector(1 downto 0) := "00";
         variable R1   : std_logic_vector(1 downto 0) := "00";
         variable R2   : std_logic_vector(1 downto 0) := "00";
+        variable CC   : std_logic_vector(2 downto 0) := "000";
 
     begin
         IF reset = '0' THEN
             state   <= FETCH_CYCLE;
             T_COUNT <= s1;
         ELSIF rising_edge(clk) THEN
-            ticks       <= ticks + 1;
             BUS_MUX_SEL <= (others => '0');
             CTRL_MAR_WE <= '1';
             CTRL_MEM_WE <= '0';
@@ -300,7 +323,374 @@ begin
                                 when others =>
                                     report "illegal" severity NOTE;
                             end case;
-                        when INCREMENT =>
+                        when INCREMENT  | DECREMENT | SHIFT_LEFT_OP | SHIFT_RIGHT_OP =>
+                            RR := IR(1 downto 0);
+                            case T_COUNT IS
+                                when s1 =>
+                                    case RR is
+                                        when REGISTER_ACC =>
+                                            BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                        when REGISTER_B =>
+                                            BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                        when REGISTER_C =>
+                                            BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                        when others =>
+                                            report "" severity note;
+                                    end case;
+                                    CTRL_TMP_WE <= '0';
+                                    T_COUNT     <= s2;
+                                when s2 =>
+                                    T_COUNT <= s3;
+                                when others =>
+                                    case RR is
+                                        when REGISTER_ACC =>
+                                            CTRL_ACC_WE <= '0';
+                                        when REGISTER_B =>
+                                            CTRL_B_WE <= '0';
+                                        when REGISTER_C =>
+                                            CTRL_C_WE <= '0';
+                                        when others =>
+                                            report "" severity note;
+                                    end case;
+                                    BUS_MUX_SEL <= to_unsigned(ALU_OUT, BUS_MUX_SEL'length);
+                                    T_COUNT     <= s1;
+                                    next_state  <= EXECUTE_CYCLE;
+                            end case;
+                        when JUMP =>
+                            mode := IR(3 downto 2);
+                            RR   := IR(1 downto 0);
+                            case mode IS
+                                when IMMEDIATE =>
+                                    case T_COUNT is
+                                        when s1 =>
+                                            BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                            CTRL_MAR_WE <= '0';
+                                            T_COUNT     <= s2;
+                                        when s2 =>
+                                            T_COUNT <= s3;
+                                        WHEN s3 =>
+                                            BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                            CTRL_PC_WE  <= '0';
+                                            T_COUNT     <= s4;
+                                        when others =>
+                                            BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                            CTRL_PC_WE  <= '0';
+                                            T_COUNT     <= s1;
+                                            next_state  <= EXECUTE_CYCLE;
+                                    end case;
+                                when others =>
+                                    case T_COUNT is
+                                        when s1 =>
+                                            case RR is
+                                                when REGISTER_B =>
+                                                    BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                when REGISTER_C =>
+                                                    BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                when REGISTER_ACC =>
+                                                    BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                when others =>
+                                                    report "illegal argument" severity note;
+                                            end case;
+                                            CTRL_PC_WE <= '0';
+                                            T_COUNT    <= s2;
+                                        when s2 =>
+                                            T_COUNT <= s3;
+                                        when others =>
+                                            BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                            CTRL_PC_WE  <= '0';
+                                            T_COUNT     <= s1;
+                                            next_state  <= EXECUTE_CYCLE;
+                                    end case;
+                            end case;
+                        when COND_JUMP =>
+                            CC := IR(3 downto 1);
+                            if (IR(0) = '1') then
+                                mode := IMMEDIATE;
+                            else
+                                mode := REG;
+                            end if;
+                            case mode IS
+                                when IMMEDIATE =>
+                                    case CC IS
+                                        when IF_CARRY =>
+                                            if (SCR(carry_flag) = '1') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_MAR_WE <= '0';
+                                                        T_COUNT     <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    WHEN s3 =>
+                                                        BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s4;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_EQUAL =>
+                                            if (SCR(zero_flag) = '1') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_MAR_WE <= '0';
+                                                        T_COUNT     <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    WHEN s3 =>
+                                                        BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s4;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_OVERFLOW =>
+                                            if (SCR(overflow_flag) = '1') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_MAR_WE <= '0';
+                                                        T_COUNT     <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    WHEN s3 =>
+                                                        BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s4;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_NO_CARRY =>
+                                            if (SCR(carry_flag) = '0') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_MAR_WE <= '0';
+                                                        T_COUNT     <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    WHEN s3 =>
+                                                        BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s4;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_NOT_EQUAL =>
+                                            if (SCR(zero_flag) = '0') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_MAR_WE <= '0';
+                                                        T_COUNT     <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    WHEN s3 =>
+                                                        BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s4;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_NO_OVERFLOW =>
+                                            if (SCR(overflow_flag) = '0') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_MAR_WE <= '0';
+                                                        T_COUNT     <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    WHEN s3 =>
+                                                        BUS_MUX_SEL <= to_unsigned(MEM_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s4;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when others =>
+                                            report "not yet implemented" severity note;
+                                    end case;
+                                when others =>
+                                    case CC IS
+                                        when IF_CARRY =>
+                                            if (SCR(carry_flag) = '1') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        case RR is
+                                                            when REGISTER_B =>
+                                                                BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_C =>
+                                                                BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_ACC =>
+                                                                BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                            when others =>
+                                                                report "illegal argument" severity note;
+                                                        end case;
+                                                        CTRL_PC_WE <= '0';
+                                                        T_COUNT    <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_EQUAL =>
+                                            if (SCR(zero_flag) = '1') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        case RR is
+                                                            when REGISTER_B =>
+                                                                BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_C =>
+                                                                BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_ACC =>
+                                                                BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                            when others =>
+                                                                report "illegal argument" severity note;
+                                                        end case;
+                                                        CTRL_PC_WE <= '0';
+                                                        T_COUNT    <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_OVERFLOW =>
+                                            if (SCR(overflow_flag) = '1') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        case RR is
+                                                            when REGISTER_B =>
+                                                                BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_C =>
+                                                                BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_ACC =>
+                                                                BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                            when others =>
+                                                                report "illegal argument" severity note;
+                                                        end case;
+                                                        CTRL_PC_WE <= '0';
+                                                        T_COUNT    <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_NO_CARRY =>
+                                            if (SCR(carry_flag) = '0') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        case RR is
+                                                            when REGISTER_B =>
+                                                                BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_C =>
+                                                                BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_ACC =>
+                                                                BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                            when others =>
+                                                                report "illegal argument" severity note;
+                                                        end case;
+                                                        CTRL_PC_WE <= '0';
+                                                        T_COUNT    <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_NO_OVERFLOW =>
+                                            if (SCR(overflow_flag) = '0') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        case RR is
+                                                            when REGISTER_B =>
+                                                                BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_C =>
+                                                                BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_ACC =>
+                                                                BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                            when others =>
+                                                                report "illegal argument" severity note;
+                                                        end case;
+                                                        CTRL_PC_WE <= '0';
+                                                        T_COUNT    <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when IF_NOT_EQUAL =>
+                                            if (SCR(zero_flag) = '0') then
+                                                case T_COUNT is
+                                                    when s1 =>
+                                                        case RR is
+                                                            when REGISTER_B =>
+                                                                BUS_MUX_SEL <= to_unsigned(B_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_C =>
+                                                                BUS_MUX_SEL <= to_unsigned(C_REG_OUT, BUS_MUX_SEL'length);
+                                                            when REGISTER_ACC =>
+                                                                BUS_MUX_SEL <= to_unsigned(ACC_OUT, BUS_MUX_SEL'length);
+                                                            when others =>
+                                                                report "illegal argument" severity note;
+                                                        end case;
+                                                        CTRL_PC_WE <= '0';
+                                                        T_COUNT    <= s2;
+                                                    when s2 =>
+                                                        T_COUNT <= s3;
+                                                    when others =>
+                                                        BUS_MUX_SEL <= to_unsigned(PC_INC_OUT, BUS_MUX_SEL'length);
+                                                        CTRL_PC_WE  <= '0';
+                                                        T_COUNT     <= s1;
+                                                        next_state  <= EXECUTE_CYCLE;
+                                                end case;
+                                            end if;
+                                        when others =>
+                                            report "not yet implemented" severity note;
+                                    end case;
+                            end case;
 
                         when others =>
                             next_state <= EXECUTE_CYCLE;

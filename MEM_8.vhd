@@ -43,8 +43,9 @@ architecture rtl of MEM_8 is
         tmp(8)  := "00000010";          --0x02
         tmp(9)  := x"50";
         tmp(10) := x"28";               -- add acc and b
-
-        for addr_pos in 11 to 2 ** ADDR_WIDTH - 1 loop
+        tmp(11) := x"62";               -- inc    acc
+        tmp(12) := x"60";               -- inc B     
+        for addr_pos in 13 to 2 ** ADDR_WIDTH - 1 loop
             -- Initialize each address with the address itself
             tmp(addr_pos) := std_logic_vector(to_unsigned(addr_pos, DATA_WIDTH));
         end loop;
